@@ -32,6 +32,8 @@ from service import app
 from service.common import status
 from service.models import db, init_db, Product
 from tests.factories import ProductFactory
+from urllib.parse import quote_plus
+from service.models import Product, Category
 
 # Disable all but critical errors during normal test run
 # uncomment for debugging failing tests
@@ -78,7 +80,7 @@ class TestProductRoutes(TestCase):
     ############################################################
     # Utility function to bulk create products
     ############################################################
-    def _create_products(self, count: int = 1) -> list:
+    def test_create_products(self, count: int = 1) -> list:
         """Factory method to create products in bulk"""
         products = []
         for _ in range(count):
@@ -164,14 +166,204 @@ class TestProductRoutes(TestCase):
         self.assertEqual(response.status_code, status.HTTP_415_UNSUPPORTED_MEDIA_TYPE)
 
     #
-    # ADD YOUR TEST CASES HERE
+    # MY TEST CASES HERE
     #
+
+    def test_get_product(self):
+        """It should Get a single Product"""
+        # get the id of a product
+        test_product = self._create_products(1)[0]
+        response = self.client.get(f"{BASE_URL}/{test_product.id}")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.get_json()
+        self.assertEqual(data["name"], test_product.name)
+
+    ######################################################################
+    # READ A PRODUCT
+    ######################################################################
+    @app.route("/products/<int:product_id>", methods=["GET"])
+    def test_get_products(product_id):
+        """
+        Retrieve a single Product
+
+        This endpoint will return a Product based on it's id
+        """
+        app.logger.info("Request to Retrieve a product with id [%s]", product_id)
+
+        product = Product.find(product_id)
+        if not product:
+            abort(status.HTTP_404_NOT_FOUND, f"Product with id '{product_id}' was not found.")
+
+        app.logger.info("Returning product: %s", product.name)
+        return product.serialize(), status.HTTP_200_OK
+
+    def test_get_product_not_found(self):
+        """It should not Get a Product thats not found"""
+        response = self.client.get(f"{BASE_URL}/0")
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        data = response.get_json()
+        self.assertIn("was not found", data["message"])
+
+    ######################################################################
+    # UPDATE AN EXISTING PRODUCT
+    ######################################################################
+    @app.route("/products/<int:product_id>", methods=["PUT"])
+    def test_update_products(self):
+        """
+        It should update a existing product
+        
+        """
+        # Create
+        test_product = ProductFactory
+        response = self.client.post(BASE_URL, jeson = test_product.serialize())
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        # update
+        new_product = response.get.jeson()
+        logging.debbug(new_product)
+        new_product["deserialization"]= "unknown"
+        response = self.client.put(f"{BASE_URL}/{new_product['id'], json= new_product)
+        self.assertEqual(response.status_code, status.HTTP_200_OK) 
+        updated_product = response.get_jeson()
+        self.assertEqual(updated_product["description"], "unknown")                            
+        
+
+    ######################################################################
+    # DELETE A PRODUCT
+    ######################################################################
+    
+    @app.route("/products/<int:product_id>", methods=["DELETE"])
+    def test_delete_products(product_id):
+        """
+        Delete a Product
+
+        This endpoint will delete a Product based the id specified in the path
+        """
+        app.logger.info("Request to Delete a product with id [%s]", product_id)
+
+        product = Product.find(product_id)
+        if product:
+            product.delete()
+
+        return "", status.HTTP_204_NO_CONTENT
+
+    ######################################################################
+    # LIST PRODUCTS
+    ######################################################################
+    @app.route("/products", methods=["GET"])
+    def test_list_products():
+        """Returns a list of Products"""
+        app.logger.info("Request to list Products...")
+
+        products = Product.all()
+
+        results = [product.serialize() for product in products]
+        app.logger.info("[%s] Products returned", len(results))
+        return results, status.HTTP_200_OK
+
+    def test_query_by_name(self):
+        """It should Query Products by name"""
+        products = self._create_products(5)
+        test_name = products[0].name
+        name_count = len([product for product in products if product.name == test_name])
+        response = self.client.get(
+            BASE_URL, query_string=f"name={quote_plus(test_name)}"
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.get_json()
+        self.assertEqual(len(data), name_count)
+        # check the data just to be sure
+        for product in data:
+            self.assertEqual(product["name"], test_name)
+
+    ######################################################################
+    # LIST PRODUCTS BY NAME
+    ######################################################################
+    @app.route("/products", methods=["GET"])
+    def tset_list_products():
+        """Returns a list of Products"""
+        app.logger.info("Request to list Products...")
+
+        products = []
+        name = request.args.get("name")
+
+        if name:
+            app.logger.info("Find by name: %s", name)
+            products = Product.find_by_name(name)
+        else:
+            app.logger.info("Find all")
+            products = Product.all()
+
+        results = [product.serialize() for product in products]
+        app.logger.info("[%s] Products returned", len(results))
+        return results, status.HTTP_200_OK
+
+    ######################################################################
+    # LIST PRODUCTS BY CATEGORY
+    ######################################################################
+    @app.route("/products", methods=["GET"])
+    def test_list_products():
+        """Returns a list of Products"""
+        app.logger.info("Request to list Products...")
+
+        products = []
+        name = request.args.get("name")
+        category = request.args.get("category")
+
+        if name:
+            app.logger.info("Find by name: %s", name)
+            products = Product.find_by_name(name)
+        elif category:
+            app.logger.info("Find by category: %s", category)
+            # create enum from string
+            category_value = getattr(Category, category.upper())
+            products = Product.find_by_category(category_value)
+        else:
+            app.logger.info("Find all")
+            products = Product.all()
+
+        results = [product.serialize() for product in products]
+        app.logger.info("[%s] Products returned", len(results))
+        return results, status.HTTP_200_OK
+
+    ######################################################################
+    # LIST PRODUCTS
+    ######################################################################
+    @app.route("/products", methods=["GET"])
+    def tset_list_products():
+        """Returns a list of Products"""
+        app.logger.info("Request to list Products...")
+
+        products = []
+        name = request.args.get("name")
+        category = request.args.get("category")
+        available = request.args.get("available")
+
+        if name:
+            app.logger.info("Find by name: %s", name)
+            products = Product.find_by_name(name)
+        elif category:
+            app.logger.info("Find by category: %s", category)
+            # create enum from string
+            category_value = getattr(Category, category.upper())
+            products = Product.find_by_category(category_value)
+        elif available:
+            app.logger.info("Find by available: %s", available)
+            # create bool from string
+            available_value = available.lower() in ["true", "yes", "1"]
+            products = Product.find_by_availability(available_value)
+        else:
+            app.logger.info("Find all")
+            products = Product.all()
+
+        results = [product.serialize() for product in products]
+        app.logger.info("[%s] Products returned", len(results))
+        return results, status.HTTP_200_OK
 
     ######################################################################
     # Utility functions
     ######################################################################
 
-    def get_product_count(self):
+    def test_get_product_count(self):
         """save the current number of products"""
         response = self.client.get(BASE_URL)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
