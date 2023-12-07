@@ -136,15 +136,15 @@ class TestProductRoutes(TestCase):
         # Uncomment this code once READ is implemented
         #
 
-        # # Check that the location header was correct
-        # response = self.client.get(location)
-        # self.assertEqual(response.status_code, status.HTTP_200_OK)
-        # new_product = response.get_json()
-        # self.assertEqual(new_product["name"], test_product.name)
-        # self.assertEqual(new_product["description"], test_product.description)
-        # self.assertEqual(Decimal(new_product["price"]), test_product.price)
-        # self.assertEqual(new_product["available"], test_product.available)
-        # self.assertEqual(new_product["category"], test_product.category.name)
+        # Check that the location header was correct
+        response = self.client.get(location)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        new_product = response.get_json()
+        self.assertEqual(new_product["name"], test_product.name)
+        self.assertEqual(new_product["description"], test_product.description)
+        self.assertEqual(Decimal(new_product["price"]), test_product.price)
+        self.assertEqual(new_product["available"], test_product.available)
+        self.assertEqual(new_product["category"], test_product.category.name)
 
     def test_create_product_with_no_name(self):
         """It should not Create a Product without a name"""
@@ -245,85 +245,6 @@ class TestProductRoutes(TestCase):
             product.delete()
 
         return "", status.HTTP_204_NO_CONTENT
-
-    ######################################################################
-    # LIST PRODUCTS
-    ######################################################################
-    @app.route("/products", methods=["GET"])
-    def test_list_products():
-        """Returns a list of Products"""
-        app.logger.info("Request to list Products...")
-
-        products = Product.all()
-
-        results = [product.serialize() for product in products]
-        app.logger.info("[%s] Products returned", len(results))
-        return results, status.HTTP_200_OK
-
-    def test_query_by_name(self):
-        """It should Query Products by name"""
-        products = self._create_products(5)
-        test_name = products[0].name
-        name_count = len([product for product in products if product.name == test_name])
-        response = self.client.get(
-            BASE_URL, query_string=f"name={quote_plus(test_name)}"
-        )
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        data = response.get_json()
-        self.assertEqual(len(data), name_count)
-        # check the data just to be sure
-        for product in data:
-            self.assertEqual(product["name"], test_name)
-
-    ######################################################################
-    # LIST PRODUCTS BY NAME
-    ######################################################################
-    @app.route("/products", methods=["GET"])
-    def tset_list_products():
-        """Returns a list of Products"""
-        app.logger.info("Request to list Products...")
-
-        products = []
-        name = request.args.get("name")
-
-        if name:
-            app.logger.info("Find by name: %s", name)
-            products = Product.find_by_name(name)
-        else:
-            app.logger.info("Find all")
-            products = Product.all()
-
-        results = [product.serialize() for product in products]
-        app.logger.info("[%s] Products returned", len(results))
-        return results, status.HTTP_200_OK
-
-    ######################################################################
-    # LIST PRODUCTS BY CATEGORY
-    ######################################################################
-    @app.route("/products", methods=["GET"])
-    def test_list_products():
-        """Returns a list of Products"""
-        app.logger.info("Request to list Products...")
-
-        products = []
-        name = request.args.get("name")
-        category = request.args.get("category")
-
-        if name:
-            app.logger.info("Find by name: %s", name)
-            products = Product.find_by_name(name)
-        elif category:
-            app.logger.info("Find by category: %s", category)
-            # create enum from string
-            category_value = getattr(Category, category.upper())
-            products = Product.find_by_category(category_value)
-        else:
-            app.logger.info("Find all")
-            products = Product.all()
-
-        results = [product.serialize() for product in products]
-        app.logger.info("[%s] Products returned", len(results))
-        return results, status.HTTP_200_OK
 
     ######################################################################
     # LIST PRODUCTS
